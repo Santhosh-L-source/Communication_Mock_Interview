@@ -1,0 +1,43 @@
+{
+  "name": "@speakready/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "start": "tsx src/index.ts",
+    "seed": "tsx --env-file-if-exists=.env src/seed/seed.ts",
+    "create-admin": "tsx --env-file-if-exists=.env src/seed/create-admin.ts",
+    "create-api-key": "tsx --env-file-if-exists=.env src/seed/create-api-key.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@speakready/shared": "^1.0.0",
+    "@supabase/supabase-js": "^2.117.2",
+    "@types/jsonwebtoken": "^9.0.10",
+    "cors": "^2.8.6",
+    "express": "^4.22.3",
+    "helmet": "^8.3.0",
+    "jose": "^6.2.12",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.4.0",
+    "pg": "^8.23.0",
+    "pg-boss": "^10.4.2",
+    "pino": "^10.3.1",
+    "pino-http": "^11.0.0",
+    "socket.io": "^4.8.4",
+    "tsx": "^4.23.15",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.25",
+    "@types/multer": "^2.2.0",
+    "@types/node": "^22.20.4",
+    "@types/pg": "^8.23.1",
+    "socket.io-client": "^4.8.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}

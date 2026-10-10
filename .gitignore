@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+*/node_modules/
+*/*/node_modules/
+*/*/*/node_modules/
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+*.env
+**/.env
+**/.env.*
+!**/.env.example
+.test-api-key.txt
+.test-student.json
+*.local
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+.cache/
+apps/web/dist/
+
+# MediaPipe copied assets
+apps/web/public/mediapipe/
+
+# Temporary / Local storage
+.local-storage/
+**/.local-storage/
+.temp/
+**/.temp/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editors
+.vscode/
+**/.vscode/
+.idea/
+**/.idea/
+.claude/
+**/.claude/
+*.swp
+*.swo

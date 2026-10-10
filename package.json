@@ -1,0 +1,19 @@
+{
+  "name": "speakready",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SpeakReady: AI placement communication readiness platform",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/api & npm run dev --workspace apps/web",
+    "dev:api": "npm run dev --workspace apps/api",
+    "dev:web": "npm run dev --workspace apps/web",
+    "seed": "npm run seed --workspace apps/api",
+    "create-admin": "npm run create-admin --workspace apps/api --",
+    "typecheck": "npm run typecheck --workspace apps/api && npm run typecheck --workspace apps/web",
+    "test": "npm test --workspace apps/api",
+    "build": "npm run build --workspace apps/web",
+    "start": "powershell -ExecutionPolicy Bypass -File scripts/start.ps1"
+  },
+  "engines": { "node": ">=20" }
+}

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeakReady - Camera & Mic Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        h1 { color: #1e293b; margin-top: 0; }
+        h2 { color: #475569; font-size: 18px; margin-top: 0; }
+        video {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            background: #000;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        .status {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .badge.ok { background: #d1fae5; color: #065f46; }
+        .badge.fail { background: #fee2e2; color: #991b1b; }
+        .badge.pending { background: #e0e7ff; color: #3730a3; }
+        .meter {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .meter-fill {
+            height: 100%;
+            background: #10b981;
+            transition: width 0.1s;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:hover:not(:disabled) { background: #2563eb; }
+        button:disabled {
+            background: #cbd5e1;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+        .warning {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .warning h3 {
+            color: #92400e;
+            margin: 0 0 8px 0;
+        }
+        .warning p {
+            color: #78350f;
+            margin: 8px 0;
+        }
+        .error-reason {
+            color: #dc2626;
+            font-weight: 600;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎥 SpeakReady Camera & Mic Test</h1>
+    <p>This page demonstrates the camera and microphone enforcement for AI interviews.</p>
+
+    <div class="card">
+        <h2>Live Preview</h2>
+        <video id="preview" autoplay muted playsinline></video>
+        <div class="meter">
+            <div class="meter-fill" id="audioMeter"></div>
+        </div>
+        <p style="font-size: 13px; color: #64748b;">Speak to test your microphone</p>
+    </div>
+
+    <div class="card">
+        <h2>Device Checks</h2>
+        <div class="status">
+            <span>Camera</span>
+            <span class="badge pending" id="cameraStatus">Checking...</span>
+        </div>
+        <div class="status">
+            <span>Microphone</span>
+            <span class="badge pending" id="micStatus">Checking...</span>
+        </div>
+        <div class="status">
+            <span>Browser</span>
+            <span class="badge pending" id="browserStatus">Checking...</span>
+        </div>
+        <div class="status" style="border-bottom: none;">
+            <span>Network</span>
+            <span class="badge pending" id="networkStatus">Checking...</span>
+        </div>
+    </div>
+
+    <div class="warning" id="warning" style="display: none;">
+        <h3>⚠️ Required Access Missing</h3>
+        <p id="warningMessage"></p>
+        <p><strong>How to fix:</strong></p>
+        <ol style="margin: 8px 0; padding-left: 20px;">
+            <li>Click the camera icon in your browser's address bar</li>
+            <li>Select "Always allow" for camera and microphone</li>
+            <li>Reload this page</li>
+        </ol>
+        <button onclick="location.reload()">↻ Retry</button>
+    </div>
+
+    <div class="error-reason" id="errorReason"></div>
+
+    <div style="text-align: right; margin-top: 20px;">
+        <button id="startBtn" disabled>Start Interview</button>
+    </div>
+
+    <script>
+        const checks = {
+            camera: false,
+            mic: false,
+            browser: false,
+            network: false
+        };
+
+        let audioContext, analyser, dataArray;
+
+        // Check browser
+        const isChrome = /Chrome|Edg\//.test(navigator.userAgent);
+        const hasMediaRecorder = 'MediaRecorder' in window;
+        checks.browser = isChrome && hasMediaRecorder;
+        document.getElementById('browserStatus').textContent = checks.browser ? 'OK' : 'Problem';
+        document.getElementById('browserStatus').className = 'badge ' + (checks.browser ? 'ok' : 'fail');
+
+        // Check network
+        fetch('http://localhost:4001/health')
+            .then(r => r.json())
+            .then(() => {
+                checks.network = true;
+                document.getElementById('networkStatus').textContent = 'OK';
+                document.getElementById('networkStatus').className = 'badge ok';
+                updateButton();
+            })
+            .catch(() => {
+                checks.network = false;
+                document.getElementById('networkStatus').textContent = 'Problem';
+                document.getElementById('networkStatus').className = 'badge fail';
+                updateButton();
+            });
+
+        // Check camera & mic
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                // Camera check
+                const videoTracks = stream.getVideoTracks();
+                checks.camera = videoTracks.length > 0;
+                document.getElementById('cameraStatus').textContent = checks.camera ? 'OK' : 'Problem';
+                document.getElementById('cameraStatus').className = 'badge ' + (checks.camera ? 'ok' : 'fail');
+
+                // Show video
+                document.getElementById('preview').srcObject = stream;
+
+                // Audio level meter
+                audioContext = new AudioContext();
+                const source = audioContext.createMediaStreamSource(stream);
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 1024;
+                source.connect(analyser);
+                dataArray = new Float32Array(analyser.fftSize);
+
+                let micDetected = false;
+                setInterval(() => {
+                    analyser.getFloatTimeDomainData(dataArray);
+                    let sum = 0;
+                    for (let i = 0; i < dataArray.length; i++) {
+                        sum += dataArray[i] * dataArray[i];
+                    }
+                    const rms = Math.sqrt(sum / dataArray.length);
+                    const level = Math.min(100, rms * 1000);
+                    document.getElementById('audioMeter').style.width = level + '%';
+
+                    if (rms > 0.02 && !micDetected) {
+                        micDetected = true;
+                        checks.mic = true;
+                        document.getElementById('micStatus').textContent = 'OK';
+                        document.getElementById('micStatus').className = 'badge ok';
+                        updateButton();
+                    }
+                }, 100);
+
+                updateButton();
+            })
+            .catch(err => {
+                console.error('getUserMedia error:', err);
+                checks.camera = false;
+                checks.mic = false;
+                document.getElementById('cameraStatus').textContent = 'Problem';
+                document.getElementById('cameraStatus').className = 'badge fail';
+                document.getElementById('micStatus').textContent = 'Problem';
+                document.getElementById('micStatus').className = 'badge fail';
+
+                // Show warning
+                let message = 'Camera and microphone access are required but not available.';
+                if (err.name === 'NotAllowedError') {
+                    message = 'You denied camera/microphone access. Please allow access to continue.';
+                } else if (err.name === 'NotFoundError') {
+                    message = 'No camera or microphone detected on your device.';
+                }
+                document.getElementById('warningMessage').textContent = message;
+                document.getElementById('warning').style.display = 'block';
+
+                updateButton();
+            });
+
+        function updateButton() {
+            const allChecks = checks.camera && checks.mic && checks.browser && checks.network;
+            const btn = document.getElementById('startBtn');
+            btn.disabled = !allChecks;
+
+            const errorReason = document.getElementById('errorReason');
+            if (!allChecks) {
+                const reasons = [];
+                if (!checks.camera && !checks.mic) reasons.push('Camera and microphone required');
+                else if (!checks.camera) reasons.push('Camera required');
+                else if (!checks.mic) reasons.push('Microphone required - speak to activate');
+                if (!checks.network) reasons.push('Cannot connect to server');
+                if (!checks.browser) reasons.push('Please use Chrome or Edge');
+                errorReason.textContent = '🚫 ' + reasons.join(' • ');
+            } else {
+                errorReason.textContent = '✅ All checks passed - Ready to start!';
+                errorReason.style.color = '#059669';
+            }
+        }
+
+        document.getElementById('startBtn').addEventListener('click', () => {
+            if (checks.camera && checks.mic && checks.browser && checks.network) {
+                alert('✅ All checks passed!\n\nIn the real app, the interview would start now.\n\nThis test page demonstrates the enforcement is working.');
+            }
+        });
+    </script>
+</body>
+</html>

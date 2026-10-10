@@ -1,0 +1,99 @@
+openapi: 3.0.3
+info:
+  title: SpeakReady external API
+  version: v1
+  description: >
+    Read a student's communication scores, interview results and malpractice (cheating) records
+    by college register number. Fields are only ever added in v1, never renamed or removed.
+servers:
+  - url: https://api.speakready.example/api/v1
+security:
+  - apiKey: []
+paths:
+  /external/students/{register_no}:
+    get:
+      summary: Everything for one student
+      parameters:
+        - { name: register_no, in: path, required: true, schema: { type: string }, example: 21CS045 }
+      responses:
+        '200': { description: Student report, content: { application/json: { schema: { $ref: '#/components/schemas/StudentReport' } } } }
+        '401': { description: Missing or invalid API key }
+        '404': { description: Unknown register number }
+        '429': { description: Rate limit exceeded (600 requests/min per key) }
+  /external/students:
+    get:
+      summary: Students changed since a time (for syncing)
+      parameters:
+        - { name: updated_since, in: query, required: true, schema: { type: string, format: date-time } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: cohort, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: One page (100 students)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  students: { type: array, items: { $ref: '#/components/schemas/StudentReport' } }
+                  next_page: { type: integer, nullable: true }
+components:
+  securitySchemes:
+    apiKey: { type: apiKey, in: header, name: x-api-key }
+  schemas:
+    StudentReport:
+      type: object
+      properties:
+        api_version: { type: string, example: v1 }
+        register_no: { type: string, example: 21CS045 }
+        full_name: { type: string }
+        department: { type: string, nullable: true }
+        year_of_study: { type: integer, nullable: true }
+        cohort: { type: string, nullable: true }
+        readiness:
+          type: object
+          properties:
+            reading: { type: number, nullable: true }
+            writing: { type: number, nullable: true }
+            listening: { type: number, nullable: true }
+            speaking: { type: number, nullable: true }
+            interview: { type: number, nullable: true }
+            score: { type: number, nullable: true, description: Overall readiness 0-100 }
+            level: { type: integer, nullable: true, description: '1 Foundation, 2 Developing, 3 Placement-ready, 4 Strong' }
+            updated_at: { type: string, format: date-time, nullable: true }
+        malpractice_confirmed: { type: boolean, description: True if any interview was confirmed as cheating by an admin }
+        interviews: { type: array, items: { $ref: '#/components/schemas/Interview' } }
+        updated_at: { type: string, format: date-time, nullable: true }
+    Interview:
+      type: object
+      properties:
+        session_id: { type: string, format: uuid }
+        type: { type: string, enum: [hr, self_intro, project, technical, situational, jam] }
+        started_at: { type: string, format: date-time, nullable: true }
+        ended_at: { type: string, format: date-time, nullable: true }
+        end_reason: { type: string, nullable: true }
+        overall_score: { type: number, nullable: true, description: Null while flagged, under review or confirmed cheating }
+        criteria: { type: object, additionalProperties: { type: number }, description: 'Marks per rubric criterion, e.g. grammar, situation_handling' }
+        integrity_score: { type: number }
+        integrity_status: { type: string, enum: [clean, needs_review, flagged, cleared, confirmed_cheating] }
+        malpractice_confirmed: { type: boolean }
+        review:
+          type: object
+          nullable: true
+          properties:
+            decision: { type: string }
+            notes: { type: string }
+            reviewed_at: { type: string, format: date-time }
+        transcript_url: { type: string, nullable: true, description: Signed link valid for 1 hour }
+        evidence:
+          type: array
+          items:
+            type: object
+            properties:
+              event_id: { type: string, format: uuid }
+              type: { type: string, example: phone_detected }
+              severity: { type: string, enum: [low, medium, high] }
+              ai_verdict: { type: string, nullable: true, enum: [confirmed, uncertain, null] }
+              occurred_at: { type: string, format: date-time }
+              transcript_excerpt: { type: string, nullable: true }
+              photo_url: { type: string, nullable: true, description: Signed link valid for 1 hour }
